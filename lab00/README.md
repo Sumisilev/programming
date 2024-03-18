@@ -56,4 +56,25 @@ int main()
 ![Alt text](lab00/preproc.png)
 
 ## Компилятор
-![Alt text](
+![Alt text](lab00/kompilator.png)
+
+## Объектные файлы
+![Alt text](lab00/fail.png)
+
+
+## Сделайте commit и push
+
+
+
+# Шпаргалка по работе с Git:
+
+
+## git add .
+
+## git commit -m "wap lab00"
+ 
+## git push
+
+# Список используемых источников
+## * https://github.com/still-coding/report_demo/blob/main/README.md
+## * https://doka.guide/tools/markdown/
