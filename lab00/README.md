@@ -71,7 +71,7 @@ int main()
 
 ## git add .
 
-## git commit -m "wap lab00"
+## git commit -m "lab00"
  
 ## git push
 
