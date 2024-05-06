@@ -17,4 +17,4 @@ def generate_excel_report(data):
     for item in data:
         ws.append([item['weight'], item['distance'], item['cost']])
 
-    wb.save('postage_report.xlsx')
+    wb.save('postage_report.xls')
