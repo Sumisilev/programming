@@ -1,7 +1,7 @@
 import sys
 from PySide6.Qtwidgets import QApplication, QMainWindow, QPushButton
 def calculate_postage():
-    passп
+    pass
 def generate_report():
     pass
 app = QApplication(sys.argv)
