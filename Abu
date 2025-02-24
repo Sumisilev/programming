@@ -1,72 +1,140 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import time
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <iostream>
+#include <vector>
 
-# Параметры системы
-L = 10.0  # Длина трубы
-R = 1.0   # Радиус трубы
-N_particles = 500  # Количество частиц
-nu = 0.1  # Кинематическая вязкость
-dt = 0.01  # Шаг по времени
-pressure_gradient = -0.1  # Градиент давления
-rho = 1.0  # Плотность жидкости
+const int WIDTH = 800;
+const int HEIGHT = 600;
 
-# Начальные условия
-particles = np.zeros((N_particles, 3))  # [x, y, z]
-velocities = np.zeros((N_particles, 3))  # [u_x, u_y, u_z]
+// Шейдеры
+const char* vertexShaderSource = R"(
+#version 330 core
+layout(location = 0) in vec3 aPos;
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+void main()
+{
+    gl_Position = projection * view * model * vec4(aPos, 1.0);
+}
+)";
 
-# Равномерное распределение частиц внутри трубы
-for i in range(N_particles):
-    r = np.sqrt(np.random.uniform(0, R**2))
-    theta = np.random.uniform(0, 2 * np.pi)
-    particles[i] = [np.random.uniform(0, L), r * np.cos(theta), r * np.sin(theta)]
+const char* fragmentShaderSource = R"(
+#version 330 core
+out vec4 FragColor;
+void main()
+{
+    FragColor = vec4(0.0, 0.5, 1.0, 1.0);
+}
+)";
 
-# Функция для обновления скорости и положения частиц
-def update_particles(particles, velocities, dt, nu, pressure_gradient, rho):
-    for i in range(N_particles):
-        # Ускорение от градиента давления
-        acceleration = np.array([pressure_gradient / rho, 0, 0])
+// Структура для хранения данных о жидкости
+struct Fluid {
+    std::vector<glm::vec3> positions;
+    std::vector<glm::vec3> velocities;
+};
 
-        # Вязкость (упрощённая модель)
-        velocities[i] += nu * np.random.normal(0, 1, 3) * dt
+// Инициализация жидкости
+void initFluid(Fluid& fluid, int numParticles) {
+    for (int i = 0; i < numParticles; ++i) {
+        fluid.positions.push_back(glm::vec3(i * 0.1f, 0.0f, 0.0f));
+        fluid.velocities.push_back(glm::vec3(0.0f, 0.0f, 0.0f));
+    }
+}
 
-        # Обновление скорости
-        velocities[i] += acceleration * dt
+// Обновление состояния жидкости
+void updateFluid(Fluid& fluid, float dt) {
+    for (size_t i = 0; i < fluid.positions.size(); ++i) {
+        // Простейшая симуляция потока
+        fluid.velocities[i] += glm::vec3(0.0f, 0.0f, -0.1f * dt);
+        fluid.positions[i] += fluid.velocities[i] * dt;
+    }
+}
 
-        # Обновление положения
-        particles[i] += velocities[i] * dt
+int main() {
+    if (!glfwInit()) {
+        std::cerr << "Failed to initialize GLFW" << std::endl;
+        return -1;
+    }
 
-        # Граничные условия (отражение от стенок)
-        r = np.sqrt(particles[i, 1]**2 + particles[i, 2]**2)
-        if r >= R:
-            normal = np.array([0, particles[i, 1], particles[i, 2]]) / r
-            velocities[i] -= 2 * np.dot(velocities[i], normal) * normal
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-        if particles[i, 0] < 0 or particles[i, 0] > L:
-            velocities[i, 0] *= -1
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Fluid Simulation", NULL, NULL);
+    if (!window) {
+        std::cerr << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
 
-    return particles, velocities
+    glfwMakeContextCurrent(window);
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK) {
+        std::cerr << "Failed to initialize GLEW" << std::endl;
+        return -1;
+    }
 
-# Создаем 3D-график
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+    glViewport(0, 0, WIDTH, HEIGHT);
 
-# Функция для обновления графика в реальном времени
-def update_plot():
-    global particles, velocities
-    while True:
-        particles, velocities = update_particles(particles, velocities, dt, nu, pressure_gradient, rho)
-        ax.clear()
-        ax.set_xlim(0, L)
-        ax.set_ylim(-R, R)
-        ax.set_zlim(-R, R)
-        ax.set_xlabel("Длина трубы (м)")
-        ax.set_ylabel("Y (м)")
-        ax.set_zlabel("Z (м)")
-        ax.set_title(f"Поток жидкости в трубе (вязкость = {nu:.2f}, давление = {pressure_gradient:.2f})")
-        ax.scatter(particles[:, 0], particles[:, 1], particles[:, 2], c='b', s=10)
-        plt.pause(0.01)
+    // Компиляция шейдеров
+    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertexShader);
 
-# Запуск обновления графика
-update_plot()
+    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragmentShader);
+
+    GLuint shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    // Инициализация жидкости
+    Fluid fluid;
+    initFluid(fluid, 100);
+
+    // Основной цикл
+    while (!glfwWindowShouldClose(window)) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // Обновление состояния жидкости
+        updateFluid(fluid, 0.01f);
+
+        // Рендеринг
+        glUseProgram(shaderProgram);
+
+        // Матрицы для камеры
+        glm::mat4 model = glm::mat4(1.0f);
+        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
+
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, &model[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, &view[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &projection[0][0]);
+
+        // Рендеринг частиц
+        for (const auto& pos : fluid.positions) {
+            glm::mat4 particleModel = glm::translate(glm::mat4(1.0f), pos);
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, &particleModel[0][0]);
+
+            // Рендеринг точки
+            glPointSize(5.0f);
+            glBegin(GL_POINTS);
+            glVertex3f(pos.x, pos.y, pos.z);
+            glEnd();
+        }
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    glfwTerminate();
+    return 0;
+}
