@@ -1,106 +1,64 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.art3d import Line3D
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.animation import FuncAnimation
 
-# Класс для представления силы
-class Force:
-    def __init__(self, magnitude, angle_xy, angle_z):
-        self.magnitude = magnitude  # Величина силы
-        self.angle_xy = angle_xy    # Угол в плоскости XY (в радианах)
-        self.angle_z = angle_z      # Угол относительно оси Z (в радианах)
+# Параметры системы
+L = 10.0  # Длина трубы
+R = 1.0   # Радиус трубы
+Nx = 50   # Количество точек по длине
+Nr = 10   # Количество точек по радиусу
+dx = L / Nx
+dr = R / Nr
+nu = 0.1  # Кинематическая вязкость
+dt = 0.01  # Шаг по времени
+rho = 1.0  # Плотность жидкости
+pressure_gradient = -0.1  # Градиент давления
 
-    # Метод для вычисления компонент силы в 3D
-    def get_components(self):
-        fx = self.magnitude * np.cos(self.angle_xy) * np.sin(self.angle_z)
-        fy = self.magnitude * np.sin(self.angle_xy) * np.sin(self.angle_z)
-        fz = self.magnitude * np.cos(self.angle_z)
-        return fx, fy, fz
+# Создаем сетку
+x = np.linspace(0, L, Nx)
+r = np.linspace(0, R, Nr)
+X, R = np.meshgrid(x, r)
 
+# Начальные условия
+u = np.zeros((Nr, Nx))  # Скорость жидкости (осевая компонента)
 
-# Класс для представления рычага
-class Lever:
-    def __init__(self, length, pivot):
-        self.length = length  # Длина рычага
-        self.pivot = pivot    # Положение точки опоры (от начала рычага)
+# Функция для обновления скорости
+def update_velocity(u, dt, dx, dr, nu, pressure_gradient):
+    u_new = np.zeros_like(u)
+    for i in range(1, Nr - 1):
+        for j in range(1, Nx - 1):
+            # Уравнение Навье-Стокса (упрощённое)
+            u_new[i, j] = u[i, j] + dt * (
+                nu * (
+                    (u[i + 1, j] - 2 * u[i, j] + u[i - 1, j]) / dr**2 +
+                    (u[i, j + 1] - 2 * u[i, j] + u[i, j - 1]) / dx**2
+                ) -
+                (1 / rho) * pressure_gradient
+            )
+    return u_new
 
-    # Метод для расчета момента силы относительно точки опоры в 3D
-    def calculate_moment(self, force, position):
-        fx, fy, fz = force.get_components()
-        distance = position - self.pivot
-        # Момент в 3D: M = r x F (векторное произведение)
-        mx = distance * fz  # Момент вокруг оси X
-        my = 0              # Момент вокруг оси Y (предполагаем, что рычаг лежит вдоль оси X)
-        mz = -distance * fx  # Момент вокруг оси Z
-        return mx, my, mz
+# Функция для анимации
+def animate(frame):
+    global u
+    u = update_velocity(u, dt, dx, dr, nu, pressure_gradient)
+    ax.clear()
+    ax.set_xlim(0, L)
+    ax.set_ylim(0, R)
+    ax.set_zlim(0, np.max(u))
+    ax.set_xlabel("Длина трубы (м)")
+    ax.set_ylabel("Радиус трубы (м)")
+    ax.set_zlabel("Скорость (м/с)")
+    ax.set_title(f"Поток жидкости в трубе (t = {frame * dt:.2f} с)")
+    ax.plot_surface(X, R, u, cmap='viridis')
+    return ax,
 
+# Создаем 3D-график
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
 
-# Функция для визуализации рычага и сил в 3D
-def visualize_lever_3d(lever, forces, positions, ax):
-    ax.clear()  # Очищаем предыдущий график
+# Анимация
+ani = FuncAnimation(fig, animate, frames=200, interval=50, blit=False)
 
-    # Рисуем рычаг (вдоль оси X)
-    ax.plot([0, lever.length], [0, 0], [0, 0], 'k-', linewidth=3, label="Рычаг")
-    ax.scatter([lever.pivot], [0], [0], color='blue', s=100, label="Точка опоры")
-
-    # Рисуем силы
-    for i, (force, position) in enumerate(zip(forces, positions)):
-        fx, fy, fz = force.get_components()
-        ax.quiver(position, 0, 0, fx, fy, fz, color='r', label=f"Сила {i+1}", arrow_length_ratio=0.1)
-        mx, my, mz = lever.calculate_moment(force, position)
-        print(f"Момент силы {i+1}: Mx={mx:.2f}, My={my:.2f}, Mz={mz:.2f} Н*м")
-
-    # Настройка графика
-    ax.set_xlim([0, lever.length])
-    ax.set_ylim([-1, 1])
-    ax.set_zlim([-1, 1])
-    ax.set_xlabel("Ось X (м)")
-    ax.set_ylabel("Ось Y (м)")
-    ax.set_zlabel("Ось Z (м)")
-    ax.set_title("3D Визуализация рычага и сил")
-    ax.legend()
-    plt.draw()  # Обновляем график
-
-
-# Функция для обработки нажатий клавиш
-def on_key(event, lever, forces, positions, ax):
-    if event.key == 'up':  # Увеличиваем величину первой силы
-        forces[0].magnitude += 10
-    elif event.key == 'down':  # Уменьшаем величину первой силы
-        forces[0].magnitude -= 10
-    elif event.key == 'left':  # Уменьшаем угол XY первой силы
-        forces[0].angle_xy -= np.radians(5)
-    elif event.key == 'right':  # Увеличиваем угол XY первой силы
-        forces[0].angle_xy += np.radians(5)
-    elif event.key == 'w':  # Увеличиваем угол Z первой силы
-        forces[0].angle_z += np.radians(5)
-    elif event.key == 's':  # Уменьшаем угол Z первой силы
-        forces[0].angle_z -= np.radians(5)
-
-    # Обновляем график
-    visualize_lever_3d(lever, forces, positions, ax)
-
-
-# Основная программа
-if __name__ == "__main__":
-    # Создаем рычаг
-    lever = Lever(length=10.0, pivot=4.0)
-
-    # Создаем силы
-    forces = [
-        Force(magnitude=50.0, angle_xy=np.radians(30), angle_z=np.radians(45)),
-        Force(magnitude=100.0, angle_xy=np.radians(45), angle_z=np.radians(60))
-    ]
-    positions = [2.0, 6.0]  # Положения сил на рычаге
-
-    # Создаем 3D-график
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    # Визуализируем рычаг и силы
-    visualize_lever_3d(lever, forces, positions, ax)
-
-    # Подключаем обработчик нажатий клавиш
-    fig.canvas.mpl_connect('key_press_event', lambda event: on_key(event, lever, forces, positions, ax))
-
-    # Показываем график
-    plt.show()
+# Показываем анимацию
+plt.show()
