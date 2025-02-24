@@ -1,0 +1,71 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Класс для представления силы
+class Force:
+    def __init__(self, magnitude, angle):
+        self.magnitude = magnitude  # Величина силы
+        self.angle = angle          # Угол приложения силы (в радианах)
+
+    # Метод для вычисления горизонтальной компоненты силы
+    def get_horizontal_component(self):
+        return self.magnitude * np.cos(self.angle)
+
+    # Метод для вычисления вертикальной компоненты силы
+    def get_vertical_component(self):
+        return self.magnitude * np.sin(self.angle)
+
+
+# Класс для представления рычага
+class Lever:
+    def __init__(self, length, pivot):
+        self.length = length  # Длина рычага
+        self.pivot = pivot    # Положение точки опоры (от начала рычага)
+
+    # Метод для расчета момента силы относительно точки опоры
+    def calculate_moment(self, force, position):
+        distance = position - self.pivot
+        return force.get_vertical_component() * distance
+
+
+# Функция для визуализации рычага и сил
+def visualize_lever(lever, forces, positions):
+    fig, ax = plt.subplots()
+
+    # Рисуем рычаг
+    ax.plot([0, lever.length], [0, 0], 'k-', linewidth=3, label="Рычаг")
+    ax.plot([lever.pivot, lever.pivot], [-0.1, 0.1], 'b--', label="Точка опоры")
+
+    # Рисуем силы
+    for i, (force, position) in enumerate(zip(forces, positions)):
+        fx = force.get_horizontal_component()
+        fy = force.get_vertical_component()
+        ax.arrow(position, 0, fx * 0.1, fy * 0.1, head_width=0.1, head_length=0.2, fc='r', ec='r', label=f"Сила {i+1}")
+        moment = lever.calculate_moment(force, position)
+        print(f"Момент силы {i+1}: {moment:.2f} Н*м")
+
+    # Настройка графика
+    ax.set_xlim(-1, lever.length + 1)
+    ax.set_ylim(-2, 2)
+    ax.set_xlabel("Положение (м)")
+    ax.set_ylabel("Сила (Н)")
+    ax.set_title("Визуализация рычага и сил")
+    ax.legend()
+    ax.grid(True)
+    plt.show()
+
+
+# Основная программа
+if __name__ == "__main__":
+    # Создаем рычаг длиной 10 м с точкой опоры на 4 м от начала
+    lever = Lever(length=10.0, pivot=4.0)
+
+    # Создаем силы и их положения на рычаге
+    forces = [
+        Force(magnitude=50.0, angle=np.pi / 6),  # 50 Н, 30 градусов
+        Force(magnitude=100.0, angle=np.pi / 4)  # 100 Н, 45 градусов
+    ]
+    positions = [2.0, 6.0]  # Положения сил на рычаге
+
+    # Визуализируем рычаг и силы
+    visualize_lever(lever, forces, positions)
