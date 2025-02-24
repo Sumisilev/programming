@@ -6,51 +6,61 @@ from matplotlib.animation import FuncAnimation
 # Параметры системы
 L = 10.0  # Длина трубы
 R = 1.0   # Радиус трубы
-Nx = 50   # Количество точек по длине
-Nr = 10   # Количество точек по радиусу
-dx = L / Nx
-dr = R / Nr
+N_particles = 500  # Количество частиц
 nu = 0.1  # Кинематическая вязкость
 dt = 0.01  # Шаг по времени
-rho = 1.0  # Плотность жидкости
 pressure_gradient = -0.1  # Градиент давления
-
-# Создаем сетку
-x = np.linspace(0, L, Nx)
-r = np.linspace(0, R, Nr)
-X, R = np.meshgrid(x, r)
+rho = 1.0  # Плотность жидкости
 
 # Начальные условия
-u = np.zeros((Nr, Nx))  # Скорость жидкости (осевая компонента)
+particles = np.zeros((N_particles, 3))  # [x, y, z]
+velocities = np.zeros((N_particles, 3))  # [u_x, u_y, u_z]
 
-# Функция для обновления скорости
-def update_velocity(u, dt, dx, dr, nu, pressure_gradient):
-    u_new = np.zeros_like(u)
-    for i in range(1, Nr - 1):
-        for j in range(1, Nx - 1):
-            # Уравнение Навье-Стокса (упрощённое)
-            u_new[i, j] = u[i, j] + dt * (
-                nu * (
-                    (u[i + 1, j] - 2 * u[i, j] + u[i - 1, j]) / dr**2 +
-                    (u[i, j + 1] - 2 * u[i, j] + u[i, j - 1]) / dx**2
-                ) -
-                (1 / rho) * pressure_gradient
-            )
-    return u_new
+# Равномерное распределение частиц внутри трубы
+for i in range(N_particles):
+    r = np.sqrt(np.random.uniform(0, R**2))
+    theta = np.random.uniform(0, 2 * np.pi)
+    particles[i] = [np.random.uniform(0, L), r * np.cos(theta), r * np.sin(theta)]
+
+# Функция для обновления скорости и положения частиц
+def update_particles(particles, velocities, dt, nu, pressure_gradient, rho):
+    for i in range(N_particles):
+        # Ускорение от градиента давления
+        acceleration = np.array([pressure_gradient / rho, 0, 0])
+
+        # Вязкость (упрощённая модель)
+        velocities[i] += nu * np.random.normal(0, 1, 3) * dt
+
+        # Обновление скорости
+        velocities[i] += acceleration * dt
+
+        # Обновление положения
+        particles[i] += velocities[i] * dt
+
+        # Граничные условия (отражение от стенок)
+        r = np.sqrt(particles[i, 1]**2 + particles[i, 2]**2)
+        if r >= R:
+            normal = np.array([0, particles[i, 1], particles[i, 2]]) / r
+            velocities[i] -= 2 * np.dot(velocities[i], normal) * normal
+
+        if particles[i, 0] < 0 or particles[i, 0] > L:
+            velocities[i, 0] *= -1
+
+    return particles, velocities
 
 # Функция для анимации
 def animate(frame):
-    global u
-    u = update_velocity(u, dt, dx, dr, nu, pressure_gradient)
+    global particles, velocities
+    particles, velocities = update_particles(particles, velocities, dt, nu, pressure_gradient, rho)
     ax.clear()
     ax.set_xlim(0, L)
-    ax.set_ylim(0, R)
-    ax.set_zlim(0, np.max(u))
+    ax.set_ylim(-R, R)
+    ax.set_zlim(-R, R)
     ax.set_xlabel("Длина трубы (м)")
-    ax.set_ylabel("Радиус трубы (м)")
-    ax.set_zlabel("Скорость (м/с)")
+    ax.set_ylabel("Y (м)")
+    ax.set_zlabel("Z (м)")
     ax.set_title(f"Поток жидкости в трубе (t = {frame * dt:.2f} с)")
-    ax.plot_surface(X, R, u, cmap='viridis')
+    ax.scatter(particles[:, 0], particles[:, 1], particles[:, 2], c='b', s=10)
     return ax,
 
 # Создаем 3D-график
