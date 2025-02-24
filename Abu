@@ -1,14 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3D
-from ipywidgets import interact, FloatSlider
 
 # Класс для представления силы
 class Force:
     def __init__(self, magnitude, angle_xy, angle_z):
         self.magnitude = magnitude  # Величина силы
         self.angle_xy = angle_xy    # Угол в плоскости XY (в радианах)
-        self.angle_z = angle_z     # Угол относительно оси Z (в радианах)
+        self.angle_z = angle_z      # Угол относительно оси Z (в радианах)
 
     # Метод для вычисления компонент силы в 3D
     def get_components(self):
@@ -36,9 +35,8 @@ class Lever:
 
 
 # Функция для визуализации рычага и сил в 3D
-def visualize_lever_3d(lever, forces, positions):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+def visualize_lever_3d(lever, forces, positions, ax):
+    ax.clear()  # Очищаем предыдущий график
 
     # Рисуем рычаг (вдоль оси X)
     ax.plot([0, lever.length], [0, 0], [0, 0], 'k-', linewidth=3, label="Рычаг")
@@ -60,45 +58,49 @@ def visualize_lever_3d(lever, forces, positions):
     ax.set_zlabel("Ось Z (м)")
     ax.set_title("3D Визуализация рычага и сил")
     ax.legend()
-    plt.show()
+    plt.draw()  # Обновляем график
 
 
-# Функция для интерактивного изменения параметров сил
-def interactive_lever_visualization(
-    magnitude1=50.0, angle_xy1=30.0, angle_z1=45.0,
-    magnitude2=100.0, angle_xy2=45.0, angle_z2=60.0
-):
-    # Преобразуем углы из градусов в радианы
-    angle_xy1_rad = np.radians(angle_xy1)
-    angle_z1_rad = np.radians(angle_z1)
-    angle_xy2_rad = np.radians(angle_xy2)
-    angle_z2_rad = np.radians(angle_z2)
+# Функция для обработки нажатий клавиш
+def on_key(event, lever, forces, positions, ax):
+    if event.key == 'up':  # Увеличиваем величину первой силы
+        forces[0].magnitude += 10
+    elif event.key == 'down':  # Уменьшаем величину первой силы
+        forces[0].magnitude -= 10
+    elif event.key == 'left':  # Уменьшаем угол XY первой силы
+        forces[0].angle_xy -= np.radians(5)
+    elif event.key == 'right':  # Увеличиваем угол XY первой силы
+        forces[0].angle_xy += np.radians(5)
+    elif event.key == 'w':  # Увеличиваем угол Z первой силы
+        forces[0].angle_z += np.radians(5)
+    elif event.key == 's':  # Уменьшаем угол Z первой силы
+        forces[0].angle_z -= np.radians(5)
 
-    # Создаем силы
-    forces = [
-        Force(magnitude=magnitude1, angle_xy=angle_xy1_rad, angle_z=angle_z1_rad),
-        Force(magnitude=magnitude2, angle_xy=angle_xy2_rad, angle_z=angle_z2_rad)
-    ]
-
-    # Положения сил на рычаге
-    positions = [2.0, 6.0]
-
-    # Создаем рычаг
-    lever = Lever(length=10.0, pivot=4.0)
-
-    # Визуализируем рычаг и силы
-    visualize_lever_3d(lever, forces, positions)
+    # Обновляем график
+    visualize_lever_3d(lever, forces, positions, ax)
 
 
 # Основная программа
 if __name__ == "__main__":
-    # Создаем интерактивный интерфейс
-    interact(
-        interactive_lever_visualization,
-        magnitude1=FloatSlider(min=0, max=200, step=1, value=50, description="Сила 1 (Н):"),
-        angle_xy1=FloatSlider(min=0, max=360, step=1, value=30, description="Угол XY 1 (°):"),
-        angle_z1=FloatSlider(min=0, max=180, step=1, value=45, description="Угол Z 1 (°):"),
-        magnitude2=FloatSlider(min=0, max=200, step=1, value=100, description="Сила 2 (Н):"),
-        angle_xy2=FloatSlider(min=0, max=360, step=1, value=45, description="Угол XY 2 (°):"),
-        angle_z2=FloatSlider(min=0, max=180, step=1, value=60, description="Угол Z 2 (°):")
-    )
+    # Создаем рычаг
+    lever = Lever(length=10.0, pivot=4.0)
+
+    # Создаем силы
+    forces = [
+        Force(magnitude=50.0, angle_xy=np.radians(30), angle_z=np.radians(45)),
+        Force(magnitude=100.0, angle_xy=np.radians(45), angle_z=np.radians(60))
+    ]
+    positions = [2.0, 6.0]  # Положения сил на рычаге
+
+    # Создаем 3D-график
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Визуализируем рычаг и силы
+    visualize_lever_3d(lever, forces, positions, ax)
+
+    # Подключаем обработчик нажатий клавиш
+    fig.canvas.mpl_connect('key_press_event', lambda event: on_key(event, lever, forces, positions, ax))
+
+    # Показываем график
+    plt.show()
