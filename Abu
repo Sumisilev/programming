@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.animation import FuncAnimation
+import time
 
 # Параметры системы
 L = 10.0  # Длина трубы
@@ -48,27 +48,25 @@ def update_particles(particles, velocities, dt, nu, pressure_gradient, rho):
 
     return particles, velocities
 
-# Функция для анимации
-def animate(frame):
-    global particles, velocities
-    particles, velocities = update_particles(particles, velocities, dt, nu, pressure_gradient, rho)
-    ax.clear()
-    ax.set_xlim(0, L)
-    ax.set_ylim(-R, R)
-    ax.set_zlim(-R, R)
-    ax.set_xlabel("Длина трубы (м)")
-    ax.set_ylabel("Y (м)")
-    ax.set_zlabel("Z (м)")
-    ax.set_title(f"Поток жидкости в трубе (t = {frame * dt:.2f} с)")
-    ax.scatter(particles[:, 0], particles[:, 1], particles[:, 2], c='b', s=10)
-    return ax,
-
 # Создаем 3D-график
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-# Анимация
-ani = FuncAnimation(fig, animate, frames=200, interval=50, blit=False)
+# Функция для обновления графика в реальном времени
+def update_plot():
+    global particles, velocities
+    while True:
+        particles, velocities = update_particles(particles, velocities, dt, nu, pressure_gradient, rho)
+        ax.clear()
+        ax.set_xlim(0, L)
+        ax.set_ylim(-R, R)
+        ax.set_zlim(-R, R)
+        ax.set_xlabel("Длина трубы (м)")
+        ax.set_ylabel("Y (м)")
+        ax.set_zlabel("Z (м)")
+        ax.set_title(f"Поток жидкости в трубе (вязкость = {nu:.2f}, давление = {pressure_gradient:.2f})")
+        ax.scatter(particles[:, 0], particles[:, 1], particles[:, 2], c='b', s=10)
+        plt.pause(0.01)
 
-# Показываем анимацию
-plt.show()
+# Запуск обновления графика
+update_plot()
